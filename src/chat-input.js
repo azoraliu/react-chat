@@ -45,6 +45,7 @@ export default class ChatInput extends Component {
   }
   selectEmoje = ({text}, isEmoji) => {
     const {textarea} = this.state;
+    console.log('propsxx',this.props);
     const {emoji = [], selectEmoje, textareaChange} = this.props;
     if (isEmoji) {
       const emojiContent = [...emojiDefault, ...emoji];
@@ -60,9 +61,12 @@ export default class ChatInput extends Component {
     this.setState({visible: true, textarea: valueContent});
   }
   submit = (e) => {
-    const {userInfo, sendMessage} = this.props;
+    const {From, To,userInfo, sendMessage} = this.props;
     const {textarea} = this.state;
+    if(textarea.replace(/^\s+|\s+$/g,'')===''){this.setState({textarea: ''}); return;}
     const data = {
+      From,
+      To,
       value: textarea,
       timestamp: new Date().getTime(),
       userInfo

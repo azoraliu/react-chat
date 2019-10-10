@@ -5,7 +5,7 @@ import IScroll from 'iscroll';
 import './style.css';
 import {dateFormat} from './utils';
 import {errorIcon} from './icon';
-
+import {Button} from 'antd';
 const re = /\[[\u4e00-\u9fa5-\w-\d]+\]/g;
 let lastDom;
 let firstDom;
@@ -18,14 +18,14 @@ let firstDataSourceTimestamp;
 let firstRender;
 
 const defaultStyle = {
-  height: 500,
+  height: '100%',
   width: '100%'
 };
 const localLanguage = (navigator.language || navigator.browserLanguage || '').toLowerCase();
 const isZh = ~localLanguage.indexOf('zh');
-
 export default class Messages extends Component {
   static propTypes = {
+    removeMessage:PropTypes.func,
     userInfo: PropTypes.object,
     dataSource: PropTypes.array,
     messageListStyle: PropTypes.object,
@@ -46,7 +46,7 @@ export default class Messages extends Component {
   state = {
     betweenTime: 1000 * 60,
     maxTimeago: 1000 * 60 * 60,
-    unreadCount: 0
+    unreadCount: 0,
   }
   componentDidMount() {
     const {scrollOptions = {}} = this.props;
@@ -121,8 +121,8 @@ export default class Messages extends Component {
     }
     return false;
   }
-  componentDidUpdate() {
-    const lastDomEle = this.refs[lastDom] || {};
+  componentDidUpdate=()=> {
+    const lastDomEle = this.refs[lastDom] || this.refs['message-list-wrapper'];
     this.myScroll.refresh();
     if (setScrollTop && autoScroll) {
       setScrollTop = false;
@@ -131,7 +131,25 @@ export default class Messages extends Component {
       firstRender && (firstRender = false);
       this.myScroll.scrollToElement(lastDomEle, adimatonTime);
     }
+    let remove;
+    window.oncontextmenu=function(e){
+      if(remove){remove.style.display = 'none';}
+      if(e.target.className!=='message-item-content'){return;}
+      console.log('target',e.target);
+      e.preventDefault();
+
+      remove=e.target.lastChild;
+      if(remove.name==='T'){
+        remove.style.display='inline-block';
+      }
+    }
+    window.onclick=function(e){
+      if(remove){
+        remove.style.display = 'none';
+      }
+    }
   }
+
   componentWillUnmount() {
     this.myScroll.destroy();
     this.myScroll = null;
@@ -150,13 +168,21 @@ export default class Messages extends Component {
   loaderContent = () => (<div className="loadEffect">
     <span /><span /><span /><span /><span /><span /><span /><span />
   </div>)
+  remove=(val)=>{
+    const {removeMessage} = this.props;
+    if(new Date().getTime()-val>60000){alert('消息超过一分钟，不能撤回!');
+    return;}
+    removeMessage(val);
+  }
   renderMessageList = (data = []) => {
-    const {timeBetween = 5, timeagoMax = 24, timeFormat, customEmoticon = []} = this.props;
-    messageLength = data.length;
+    const {timeBetween =1, timeagoMax = 1, timeFormat, customEmoticon = [],userlist,showlist} = this.props;
+    console.log(this.props.showlist);
+      messageLength = data.length;
     const {userInfo: {userId: ownUserId, avatar: ownAvatar, name: ownName} = {}} = this.props;
     let {maxTimeago, betweenTime} = this.state;
     maxTimeago *= timeagoMax;
     betweenTime *= timeBetween;
+    console.log()
     const language = isZh ? 'zh_CN' : 'en_US';
     const timeFormatString = timeFormat || (isZh ? 'MM月dd hh:mm' : 'MM-dd hh:mm');
     let startTimeStamp = 0;
@@ -172,8 +198,8 @@ export default class Messages extends Component {
       let timeInfoNode = '';
       if ((timestamp - startTimeStamp) > betweenTime) {
         timeInfoNode = (new Date().getTime() - timestamp) < maxTimeago ?
-          <p className="time-info"><span>{format(timestamp, language)}</span></p> :
-          <p className="time-info"><span>{dateFormat(timestamp, timeFormatString)}</span></p>;
+            <p className="time-info"><span>{format(timestamp, language)}</span></p> :
+            <p className="time-info"><span>{dateFormat(timestamp, timeFormatString)}</span></p>;
       }
       startTimeStamp = timestamp;
       const concatChat = [];
@@ -191,8 +217,8 @@ export default class Messages extends Component {
             return chatValue;
           case 'emoji':
             const {url} = chatValue && customEmoticon.find(emv => emv.text === chatValue) || {};
-            return url ? <img key={index} src={url} className="message-content-emoji" /> :
-              `[${chatValue}]`;
+            return url ? <img key={index} src={url} className="message-content-emoji"/> :
+                `[${chatValue}]`;
           default:
             return v;
         }
@@ -224,18 +250,29 @@ export default class Messages extends Component {
         lastDom = timestamp;
       }
       const isOwn = userId.toString() === ownUserId.toString();
+      let renderusername = userId === ownUserId ? null : (<span>{userId}</span>);
       return (<div key={timestamp} {...lastDomRef}>
         {timeInfoNode}
         <div className={`message-item ${isOwn ? 'message-item-own' : 'message-item-other'}`}>
+          {/*{renderusername}*/}
           <div onClick={() => this.userAvatarClick(userInfo)}>
-            <img
-              className="message-item-avatar"
-              src={avatar}
-            />
+            <span className="message-item-avatar">
+              <span style={{display: 'inline-block', marginTop: '50%', transform: 'translate(0,-50%)'}}>
+              <span>{userId.charAt(0)}</span>
+              </span>
+            </span>
+            {/*<img*/}
+            {/*  className="message-item-avatar"*/}
+            {/*  src={avatar}*/}
+            {/*/>*/}
           </div>
           <p className="message-item-content">
+            {/*<span id="menu" style={{display:'none',position:'absolute',width:'60px', height:'30px',lineHeight:'30px',backgroundColor:'#fff',borderRadius:'3px',textAlign:'center'}}*/}
+            {/*     onClick={this.remove.bind(this,timestamp)}>撤回</span>*/}
             {content}
-            {isOwn && error && <span className="error-status" ><img src={errorIcon} /></span>}
+            {isOwn && error && <span className="error-status"><img src={errorIcon}/></span>}
+            <Button name={isOwn ? 'T' : 'F'} size="small" style={{display: 'none'}}
+                    onClick={this.remove.bind(this, timestamp)}>撤回</Button>
           </p>
         </div>
       </div>);
@@ -246,7 +283,7 @@ export default class Messages extends Component {
     const {unreadCount} = this.state;
     const noDataElement = noDataEle || (<p className="noData-tips">{isZh ? '没有更多数据了' : 'no more data'}</p>);
     return (
-      <div className={`massage-container ${className}`} style={messageListStyle} id="massage-container">
+      <div className={`massage-container ${className}`} style={{width: '100%',height:'100%',overflow: 'hidden'}} id="massage-container">
         <div className="message-list-wrapper" ref="message-list-wrapper">
           {!noData && loading && <div className="message-loading">
             {loader || this.loaderContent()}
